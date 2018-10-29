@@ -1,0 +1,66 @@
+use "backpressure"
+use "logger"
+use "net"
+use "time"
+
+use "../common"
+
+class ClientTCPConnectionNotify is TCPConnectionNotify
+  let _auth: BackpressureAuth
+  var _factory: (RequestFactory | None) = None
+  let _logger: Logger[String]
+  let _metrics: MetricsSink
+  let _size: USize
+  var _backpressure_applied: Bool = false
+
+  new iso create(auth: BackpressureAuth, logger: Logger[String],
+    metrics: MetricsSink, _queue_size: USize = 65536)
+  =>
+    _auth = auth
+    _logger = logger
+    _metrics = metrics
+    _size = _queue_size
+
+  fun ref connected(conn: TCPConnection ref) =>
+    _logger(Fine) and _logger.log("connected")
+    _factory = RequestFactory(conn, _metrics, _size)
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    let msg = "unable to connect"
+    _logger(Error) and _logger.log(msg)
+
+  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq
+  =>
+    data
+
+  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
+    times: USize): Bool
+  =>
+    """Disregards the content of `data`, looking only for \n"""
+    var count: USize = String.from_array(consume data).count("\n")
+    try (_factory as RequestFactory).received(count) end
+    true
+
+  fun ref throttled(conn: TCPConnection ref) =>
+    _logger(Fine) and _logger.log("throttled")
+    _apply_backpressure()
+
+  fun ref unthrottled(conn: TCPConnection ref) =>
+    _logger(Fine) and _logger.log("unthrottled")
+    _release_backpressure()
+
+  fun _apply_backpressure() =>
+    // if not _backpressure_applied then
+    //   _logger(Fine) and _logger.log("applying backpressure")
+    //   Backpressure.apply(_auth)
+    // end
+    //try (_factory as RequestFactory).pause() end
+    None
+
+  fun _release_backpressure() =>
+    // if _backpressure_applied then
+    //   _logger(Fine) and _logger.log("releasing backpressure")
+    //   Backpressure.release(_auth)
+    // end
+    //try (_factory as RequestFactory).unpause() end
+    None

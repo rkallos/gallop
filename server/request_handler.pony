@@ -4,12 +4,21 @@ use "time"
 
 use "../common"
 
-//actor RequestHandler
 class RequestHandler
   new create(conn: TCPConnection, data: Array[U8] iso, logger: Logger[String],
     metrics: MetricsSink)
   =>
     let start: U64 = Time.nanos()
-    conn.write("go home, ron\n")
-    let finish: U64 = Time.nanos()
-    metrics("RequestHandler", finish - start)
+
+    var count: USize = String.from_array(consume data).count("\n")
+
+    let reply: String = "go home, ron\n"
+    let msg = recover trn String(reply.size() * count) end
+
+    while count > 0 do
+      msg.append(reply)
+      metrics("RequestHandler", Time.nanos() - start)
+      count = count - 1
+    end
+
+    conn.write(consume msg)

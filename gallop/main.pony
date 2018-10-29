@@ -3,6 +3,7 @@ use "logger"
 use "net"
 
 use "../common"
+use "../client"
 use "../server"
 
 actor Main
@@ -58,7 +59,7 @@ actor Main
     | "server" =>
       start_server(auth, cmd, logger, metrics)
     | "client" =>
-      start_client(auth, cmd, logger, metrics)
+      start_client(auth, cmd, logger)
     end
 
   fun start_common(cmd: Command, env: Env): (Logger[String], MetricsSink) =>
@@ -82,7 +83,11 @@ actor Main
     TCPListener(auth, ServerTCPListenNotify(auth, logger, metrics), "", port)
 
 
-  fun start_client(auth: AmbientAuth, cmd: Command, logger: Logger[String],
-    metrics: MetricsSink)
+  fun start_client(auth: AmbientAuth, cmd: Command, logger: Logger[String])
   =>
+    let host: String = cmd.arg("host").string()
+    let port: String = cmd.arg("port").u64().string()
+
     logger.log("starting client")
+
+    RequestFactory(auth, logger, host, port)
